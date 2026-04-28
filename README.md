@@ -2,7 +2,7 @@
 
 Chrome MV3 extension that adds an author statistics panel to GitHub pull request pages.
 
-![Meerkat author statistics panel](assets/screenshots/pr-author-statistics.png)
+<img src="assets/screenshots/pr-author-statistics.png" alt="Meerkat author statistics panel" width="365">
 
 ## What It Shows
 
