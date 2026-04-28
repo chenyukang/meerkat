@@ -1,0 +1,110 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  background: #f6f8fa;
+  color: #24292f;
+  margin: 0;
+}
+
+.page {
+  display: grid;
+  min-height: 100vh;
+  place-items: start center;
+  padding: 48px 16px;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.18);
+  box-sizing: border-box;
+  max-width: 520px;
+  padding: 24px;
+  width: 100%;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 20px;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+input {
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font: inherit;
+  line-height: 20px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+button {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  color: #24292f;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 7px 12px;
+}
+
+button:first-child {
+  background: #1f883d;
+  border-color: #1f883d;
+  color: #ffffff;
+}
+
+#status {
+  color: #57606a;
+  font-size: 13px;
+  min-height: 20px;
+  margin: 16px 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+  }
+
+  .panel {
+    background: #161b22;
+    border-color: #30363d;
+    box-shadow: none;
+  }
+
+  input,
+  button {
+    background: #21262d;
+    border-color: #30363d;
+    color: #e6edf3;
+  }
+
+  button:first-child {
+    background: #238636;
+    border-color: #238636;
+  }
+
+  #status {
+    color: #8b949e;
+  }
+}

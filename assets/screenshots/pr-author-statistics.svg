@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="730" height="1268" viewBox="0 0 730 1268" role="img" aria-labelledby="title desc">
+  <title id="title">Meerkat author statistics panel screenshot</title>
+  <desc id="desc">A GitHub pull request sidebar panel showing trusted author statistics for chenyukang.</desc>
+  <defs>
+    <style>
+      .font {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      }
+      .label {
+        fill: #59636f;
+        font-size: 26px;
+        font-weight: 500;
+      }
+      .value {
+        fill: #0969da;
+        font-size: 25px;
+        font-weight: 700;
+      }
+      .value-dark {
+        fill: #24292f;
+        font-size: 25px;
+        font-weight: 700;
+      }
+      .button-text {
+        fill: #24292f;
+        font-size: 25px;
+        font-weight: 700;
+      }
+    </style>
+  </defs>
+
+  <rect width="730" height="1268" fill="#ffffff"/>
+  <rect x="36" y="24" width="640" height="1226" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+
+  <text class="font" x="62" y="86" fill="#24292f" font-size="28" font-weight="700">Author statistics</text>
+  <rect x="420" y="51" width="120" height="51" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="2"/>
+  <text class="font button-text" x="480" y="85" text-anchor="middle">Refresh</text>
+  <rect x="550" y="51" width="99" height="51" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="2"/>
+  <text class="font button-text" x="600" y="85" text-anchor="middle">Token</text>
+
+  <text class="font" x="62" y="153" fill="#0969da" font-size="27" font-weight="500">@chenyukang</text>
+  <rect x="535" y="125" width="114" height="39" rx="20" fill="#dafbe1" stroke="#7ee09b" stroke-width="2"/>
+  <text class="font" x="592" y="152" fill="#116329" font-size="24" font-weight="700" text-anchor="middle">Trusted</text>
+
+  <rect x="62" y="184" width="588" height="65" rx="10" fill="#dafbe1"/>
+  <circle cx="91" cy="218" r="4.5" fill="#116329"/>
+  <text class="font" x="111" y="225" fill="#116329" font-size="26" font-weight="500">Merged 158 PRs in this repo</text>
+
+  <line x1="62" y1="270" x2="650" y2="270" stroke="#d0d7de" stroke-width="1.5"/>
+
+  <g class="font">
+    <text class="label" x="62" y="309">Repo PRs</text>
+    <text class="value" x="650" y="309" text-anchor="end">176</text>
+    <line x1="62" y1="328" x2="650" y2="328" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="367">Merged in repo</text>
+    <text class="value" x="650" y="367" text-anchor="end">158</text>
+    <line x1="62" y1="386" x2="650" y2="386" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="425">Open in repo</text>
+    <text class="value" x="650" y="425" text-anchor="end">5</text>
+    <line x1="62" y1="444" x2="650" y2="444" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="483">Closed unmerged</text>
+    <text class="value" x="650" y="483" text-anchor="end">13</text>
+    <line x1="62" y1="502" x2="650" y2="502" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="541">Repo PRs in 48h</text>
+    <text class="value" x="650" y="541" text-anchor="end">0</text>
+    <line x1="62" y1="560" x2="650" y2="560" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="599">Repo issues</text>
+    <text class="value" x="650" y="599" text-anchor="end">25</text>
+    <line x1="62" y1="620" x2="650" y2="620" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="659">Merged ratio here</text>
+    <text class="value-dark" x="650" y="659" text-anchor="end">90%</text>
+    <line x1="62" y1="678" x2="650" y2="678" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="717">Author association</text>
+    <text class="value-dark" x="650" y="717" text-anchor="end">COLLABORATOR</text>
+    <line x1="62" y1="738" x2="650" y2="738" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="775">All PRs in 48h</text>
+    <text class="value" x="650" y="775" text-anchor="end">1</text>
+    <line x1="62" y1="795" x2="650" y2="795" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="833">Account created</text>
+    <text class="value" x="650" y="833" text-anchor="end">Mar 26, 2010</text>
+    <line x1="62" y1="854" x2="650" y2="854" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="892">Account age</text>
+    <text class="value" x="650" y="892" text-anchor="end">16 years</text>
+    <line x1="62" y1="912" x2="650" y2="912" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="950">Public repos</text>
+    <text class="value" x="650" y="950" text-anchor="end">231</text>
+    <line x1="62" y1="970" x2="650" y2="970" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="1008">Followers</text>
+    <text class="value" x="650" y="1008" text-anchor="end">1,036</text>
+    <line x1="62" y1="1029" x2="650" y2="1029" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="1067">Current PR age</text>
+    <text class="value-dark" x="650" y="1067" text-anchor="end">7 days</text>
+    <line x1="62" y1="1087" x2="650" y2="1087" stroke="#d0d7de" stroke-width="1.5"/>
+
+    <text class="label" x="62" y="1125">Current PR size</text>
+    <text class="value-dark" x="650" y="1125" text-anchor="end">+365 -225, 5 files, 2</text>
+    <text class="value-dark" x="650" y="1157" text-anchor="end">commits</text>
+  </g>
+
+  <text class="font label" x="62" y="1218">Updated 12:55 PM</text>
+  <text class="font label" x="650" y="1218" text-anchor="end">API remaining 23</text>
+</svg>

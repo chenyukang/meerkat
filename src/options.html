@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Meerkat Options</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel">
+        <h1>Meerkat</h1>
+        <label for="github-token">GitHub token</label>
+        <input id="github-token" type="password" autocomplete="off" placeholder="ghp_...">
+        <div class="actions">
+          <button id="save-token" type="button">Save</button>
+          <button id="test-token" type="button">Test</button>
+          <button id="clear-cache" type="button">Clear cache</button>
+        </div>
+        <p id="status" role="status"></p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
