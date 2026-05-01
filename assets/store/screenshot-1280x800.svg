@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
+  <title id="title">Meerkat Chrome Web Store screenshot</title>
+  <desc id="desc">GitHub pull request page mockup with the Meerkat author statistics panel in the sidebar.</desc>
+  <defs>
+    <style>
+      .font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .muted { fill: #59636f; }
+      .blue { fill: #0969da; }
+      .dark { fill: #24292f; }
+      .line { stroke: #d0d7de; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="800" fill="#f6f8fa"/>
+  <rect width="1280" height="64" fill="#24292f"/>
+  <circle cx="38" cy="32" r="16" fill="#ffffff"/>
+  <text class="font" x="74" y="40" fill="#ffffff" font-size="22" font-weight="700">GitHub</text>
+  <rect x="182" y="18" width="320" height="28" rx="6" fill="#3a4048"/>
+  <text class="font" x="198" y="37" fill="#c9d1d9" font-size="14">Search or jump to...</text>
+
+  <rect x="56" y="96" width="1168" height="648" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+
+  <text class="font dark" x="92" y="142" font-size="25" font-weight="700">rust-lang / rust</text>
+  <rect x="92" y="166" width="760" height="80" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+  <text class="font dark" x="116" y="204" font-size="24" font-weight="700">Check raw-dylib ordinal link targets</text>
+  <text class="font muted" x="116" y="229" font-size="15">#100091 opened by chenyukang</text>
+
+  <rect x="92" y="270" width="760" height="120" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+  <circle cx="122" cy="306" r="18" fill="#0969da"/>
+  <text class="font dark" x="154" y="305" font-size="17" font-weight="700">chenyukang commented</text>
+  <text class="font muted" x="154" y="334" font-size="16">This pull request updates a compiler test and keeps the change small.</text>
+  <rect x="154" y="354" width="620" height="16" rx="4" fill="#f6f8fa"/>
+
+  <rect x="92" y="414" width="760" height="120" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+  <circle cx="122" cy="450" r="18" fill="#2da44e"/>
+  <text class="font dark" x="154" y="449" font-size="17" font-weight="700">Review status</text>
+  <text class="font muted" x="154" y="478" font-size="16">Maintainers can use the sidebar context before spending review time.</text>
+  <rect x="154" y="498" width="580" height="16" rx="4" fill="#f6f8fa"/>
+
+  <rect x="884" y="96" width="304" height="648" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+  <text class="font dark" x="908" y="135" font-size="20" font-weight="700">Author statistics</text>
+  <rect x="1088" y="112" width="76" height="34" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text class="font dark" x="1126" y="135" font-size="15" font-weight="700" text-anchor="middle">Options</text>
+
+  <text class="font blue" x="908" y="184" font-size="19">@chenyukang</text>
+  <rect x="1096" y="158" width="68" height="30" rx="15" fill="#dafbe1" stroke="#7ee09b"/>
+  <text class="font" x="1130" y="179" fill="#116329" font-size="15" font-weight="700" text-anchor="middle">Trusted</text>
+
+  <rect x="908" y="206" width="256" height="52" rx="8" fill="#dafbe1"/>
+  <circle cx="930" cy="232" r="4" fill="#116329"/>
+  <text class="font" x="946" y="238" fill="#116329" font-size="17" font-weight="500">Merged 158 PRs here</text>
+
+  <g class="font">
+    <line class="line" x1="908" y1="278" x2="1164" y2="278"/>
+    <text class="muted" x="908" y="308" font-size="17">Repo PRs</text>
+    <text class="blue" x="1164" y="308" font-size="17" font-weight="700" text-anchor="end">176</text>
+    <line class="line" x1="908" y1="326" x2="1164" y2="326"/>
+
+    <text class="muted" x="908" y="356" font-size="17">Merged in repo</text>
+    <text class="blue" x="1164" y="356" font-size="17" font-weight="700" text-anchor="end">158</text>
+    <line class="line" x1="908" y1="374" x2="1164" y2="374"/>
+
+    <text class="muted" x="908" y="404" font-size="17">Open in repo</text>
+    <text class="blue" x="1164" y="404" font-size="17" font-weight="700" text-anchor="end">5</text>
+    <line class="line" x1="908" y1="422" x2="1164" y2="422"/>
+
+    <text class="muted" x="908" y="452" font-size="17">Closed unmerged</text>
+    <text class="blue" x="1164" y="452" font-size="17" font-weight="700" text-anchor="end">13</text>
+    <line class="line" x1="908" y1="470" x2="1164" y2="470"/>
+
+    <text class="muted" x="908" y="500" font-size="17">Repo issues</text>
+    <text class="blue" x="1164" y="500" font-size="17" font-weight="700" text-anchor="end">25</text>
+    <line class="line" x1="908" y1="518" x2="1164" y2="518"/>
+
+    <text class="muted" x="908" y="548" font-size="17">Author association</text>
+    <text class="dark" x="1164" y="548" font-size="17" font-weight="700" text-anchor="end">MEMBER</text>
+    <line class="line" x1="908" y1="566" x2="1164" y2="566"/>
+
+    <text class="muted" x="908" y="596" font-size="17">Account age</text>
+    <text class="blue" x="1164" y="596" font-size="17" font-weight="700" text-anchor="end">16 years</text>
+    <line class="line" x1="908" y1="614" x2="1164" y2="614"/>
+
+    <text class="muted" x="908" y="644" font-size="17">Current PR size</text>
+    <text class="dark" x="1164" y="644" font-size="17" font-weight="700" text-anchor="end">5 files</text>
+  </g>
+</svg>

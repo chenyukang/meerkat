@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="730" height="1268" viewBox="0 0 730 1268" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="730" height="1192" viewBox="0 0 730 1192" role="img" aria-labelledby="title desc">
   <title id="title">Meerkat author statistics panel screenshot</title>
   <desc id="desc">A GitHub pull request sidebar panel showing trusted author statistics for chenyukang.</desc>
   <defs>
@@ -29,14 +29,14 @@
     </style>
   </defs>
 
-  <rect width="730" height="1268" fill="#ffffff"/>
-  <rect x="36" y="24" width="640" height="1226" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+  <rect width="730" height="1192" fill="#ffffff"/>
+  <rect x="36" y="24" width="640" height="1150" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
 
   <text class="font" x="62" y="86" fill="#24292f" font-size="28" font-weight="700">Author statistics</text>
   <rect x="420" y="51" width="120" height="51" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="2"/>
   <text class="font button-text" x="480" y="85" text-anchor="middle">Refresh</text>
   <rect x="550" y="51" width="99" height="51" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="2"/>
-  <text class="font button-text" x="600" y="85" text-anchor="middle">Token</text>
+  <text class="font button-text" x="600" y="85" text-anchor="middle">Options</text>
 
   <text class="font" x="62" y="153" fill="#0969da" font-size="27" font-weight="500">@chenyukang</text>
   <rect x="535" y="125" width="114" height="39" rx="20" fill="#dafbe1" stroke="#7ee09b" stroke-width="2"/>
@@ -109,7 +109,4 @@
     <text class="value-dark" x="650" y="1125" text-anchor="end">+365 -225, 5 files, 2</text>
     <text class="value-dark" x="650" y="1157" text-anchor="end">commits</text>
   </g>
-
-  <text class="font label" x="62" y="1218">Updated 12:55 PM</text>
-  <text class="font label" x="650" y="1218" text-anchor="end">API remaining 23</text>
 </svg>

@@ -10,6 +10,18 @@
     <main class="page">
       <section class="panel">
         <h1>Meerkat</h1>
+        <label for="appearance-mode">Appearance</label>
+        <select id="appearance-mode">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+
+        <fieldset class="field-group">
+          <legend>Visible statistics</legend>
+          <div id="visible-stats" class="checkbox-grid"></div>
+        </fieldset>
+
         <label for="github-token">GitHub token</label>
         <input id="github-token" type="password" autocomplete="off" placeholder="ghp_...">
         <div class="actions">

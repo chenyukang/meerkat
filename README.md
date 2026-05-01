@@ -15,6 +15,8 @@ Chrome MV3 extension that adds an author statistics panel to GitHub pull request
 
 Each count links to the matching GitHub search page.
 
+All statistics are visible by default. Open the extension options page to hide individual rows and save that display preference locally.
+
 ## Load Locally
 
 1. Open `chrome://extensions`.

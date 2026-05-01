@@ -1,11 +1,20 @@
 :root {
   color-scheme: light dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --options-bg: #f6f8fa;
+  --options-panel-bg: #ffffff;
+  --options-fg: #24292f;
+  --options-muted: #57606a;
+  --options-border: #d0d7de;
+  --options-button-bg: #f6f8fa;
+  --options-primary-bg: #1f883d;
+  --options-primary-border: #1f883d;
+  --options-shadow: 0 8px 24px rgba(140, 149, 159, 0.18);
 }
 
 body {
-  background: #f6f8fa;
-  color: #24292f;
+  background: var(--options-bg);
+  color: var(--options-fg);
   margin: 0;
 }
 
@@ -17,10 +26,10 @@ body {
 }
 
 .panel {
-  background: #ffffff;
-  border: 1px solid #d0d7de;
+  background: var(--options-panel-bg);
+  border: 1px solid var(--options-border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.18);
+  box-shadow: var(--options-shadow);
   box-sizing: border-box;
   max-width: 520px;
   padding: 24px;
@@ -39,14 +48,60 @@ label {
   margin-bottom: 8px;
 }
 
-input {
-  border: 1px solid #d0d7de;
+input,
+select {
+  background: var(--options-panel-bg);
+  border: 1px solid var(--options-border);
   border-radius: 6px;
   box-sizing: border-box;
+  color: var(--options-fg);
   font: inherit;
   line-height: 20px;
   padding: 8px 10px;
   width: 100%;
+}
+
+select {
+  margin-bottom: 20px;
+}
+
+.field-group {
+  border: 1px solid var(--options-border);
+  border-radius: 6px;
+  margin: 0 0 20px;
+  padding: 12px;
+}
+
+.field-group legend {
+  color: var(--options-fg);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.checkbox-grid {
+  display: grid;
+  gap: 8px 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkbox-row {
+  align-items: center;
+  color: var(--options-fg);
+  display: flex;
+  font-size: 13px;
+  font-weight: 400;
+  gap: 8px;
+  margin: 0;
+}
+
+.checkbox-row input {
+  accent-color: var(--options-primary-bg);
+  appearance: auto;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  width: 16px;
 }
 
 .actions {
@@ -57,10 +112,10 @@ input {
 }
 
 button {
-  background: #f6f8fa;
-  border: 1px solid #d0d7de;
+  background: var(--options-button-bg);
+  border: 1px solid var(--options-border);
   border-radius: 6px;
-  color: #24292f;
+  color: var(--options-fg);
   cursor: pointer;
   font: inherit;
   font-weight: 600;
@@ -68,43 +123,60 @@ button {
 }
 
 button:first-child {
-  background: #1f883d;
-  border-color: #1f883d;
+  background: var(--options-primary-bg);
+  border-color: var(--options-primary-border);
   color: #ffffff;
 }
 
 #status {
-  color: #57606a;
+  color: var(--options-muted);
   font-size: 13px;
   min-height: 20px;
   margin: 16px 0 0;
 }
 
 @media (prefers-color-scheme: dark) {
-  body {
-    background: #0d1117;
-    color: #e6edf3;
+  :root {
+    --options-bg: #0d1117;
+    --options-panel-bg: #161b22;
+    --options-fg: #e6edf3;
+    --options-muted: #8b949e;
+    --options-border: #30363d;
+    --options-button-bg: #21262d;
+    --options-primary-bg: #238636;
+    --options-primary-border: #238636;
+    --options-shadow: none;
   }
+}
 
-  .panel {
-    background: #161b22;
-    border-color: #30363d;
-    box-shadow: none;
-  }
+:root[data-mh-theme="light"] {
+  color-scheme: light;
+  --options-bg: #f6f8fa;
+  --options-panel-bg: #ffffff;
+  --options-fg: #24292f;
+  --options-muted: #57606a;
+  --options-border: #d0d7de;
+  --options-button-bg: #f6f8fa;
+  --options-primary-bg: #1f883d;
+  --options-primary-border: #1f883d;
+  --options-shadow: 0 8px 24px rgba(140, 149, 159, 0.18);
+}
 
-  input,
-  button {
-    background: #21262d;
-    border-color: #30363d;
-    color: #e6edf3;
-  }
+:root[data-mh-theme="dark"] {
+  color-scheme: dark;
+  --options-bg: #0d1117;
+  --options-panel-bg: #161b22;
+  --options-fg: #e6edf3;
+  --options-muted: #8b949e;
+  --options-border: #30363d;
+  --options-button-bg: #21262d;
+  --options-primary-bg: #238636;
+  --options-primary-border: #238636;
+  --options-shadow: none;
+}
 
-  button:first-child {
-    background: #238636;
-    border-color: #238636;
-  }
-
-  #status {
-    color: #8b949e;
+@media (max-width: 560px) {
+  .checkbox-grid {
+    grid-template-columns: 1fr;
   }
 }

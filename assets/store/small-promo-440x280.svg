@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280" role="img" aria-labelledby="title desc">
+  <title id="title">Meerkat small promo tile</title>
+  <desc id="desc">Meerkat promo image for the Chrome Web Store.</desc>
+  <rect width="440" height="280" rx="0" fill="#0f766e"/>
+  <circle cx="88" cy="104" r="50" fill="#f5c878"/>
+  <path d="M53 101c-12-10-13-24-4-36 13 4 21 13 23 29Z" fill="#8f4f24"/>
+  <path d="M123 101c12-10 13-24 4-36-13 4-21 13-23 29Z" fill="#8f4f24"/>
+  <ellipse cx="70" cy="109" rx="16" ry="18" fill="#5a321f"/>
+  <ellipse cx="106" cy="109" rx="16" ry="18" fill="#5a321f"/>
+  <circle cx="72" cy="108" r="5" fill="#111827"/>
+  <circle cx="104" cy="108" r="5" fill="#111827"/>
+  <path d="M81 125c2-5 5-7 8-7s6 2 8 7c-2 5-5 7-8 7s-6-2-8-7Z" fill="#3b2418"/>
+  <path d="M63 142c14 14 38 14 52 0" fill="none" stroke="#6b3e22" stroke-width="5" stroke-linecap="round"/>
+  <path d="M48 187c5-38 18-58 40-58s35 20 40 58c-12 10-25 15-40 15s-28-5-40-15Z" fill="#c98136"/>
+  <path d="M122 62l10 10 24-28" fill="none" stroke="#a7f3d0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="176" y="106" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="46" font-weight="800">Meerkat</text>
+  <text x="178" y="148" fill="#ccfbf1" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">PR author context</text>
+  <text x="178" y="181" fill="#ccfbf1" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">for GitHub maintainers</text>
+</svg>

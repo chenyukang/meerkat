@@ -6,6 +6,7 @@ const CACHE_SHORT_MS = 2 * 60 * 1000;
 const CACHE_MEDIUM_MS = 10 * 60 * 1000;
 const CACHE_LONG_MS = 6 * 60 * 60 * 1000;
 const RECENT_WINDOW_HOURS = 48;
+const STAT_VISIBILITY_STORAGE_KEY = "visibleStats";
 const TRUSTED_AUTHOR_ASSOCIATIONS = new Set(["MEMBER", "OWNER"]);
 const RISKY_AUTHOR_ASSOCIATIONS = new Set([
   "NONE",
@@ -13,9 +14,40 @@ const RISKY_AUTHOR_ASSOCIATIONS = new Set([
   "FIRST_TIME_CONTRIBUTOR",
   "MANNEQUIN"
 ]);
+const DEFAULT_VISIBLE_STATS = Object.freeze({
+  signals: true,
+  repoTotal: true,
+  repoMerged: true,
+  repoOpen: true,
+  repoClosedUnmerged: true,
+  repoRecent48h: true,
+  repoIssues: true,
+  mergedRatio: true,
+  authorAssociation: true,
+  globalRecent48h: true,
+  accountCreated: true,
+  accountAge: true,
+  publicRepos: true,
+  followers: true,
+  currentPrAge: true,
+  currentPrSize: true
+});
+const APPEARANCE_MODES = new Set(["auto", "light", "dark"]);
+const THEME_ATTRIBUTES = [
+  "class",
+  "data-color-mode",
+  "data-dark-theme",
+  "data-light-theme",
+  "data-darkreader-mode",
+  "data-darkreader-scheme",
+  "style"
+];
 
 let activePageKey = "";
 let activeRequestId = 0;
+let activeAppearanceMode = "auto";
+let activeContext = null;
+let activeStats = null;
 let mountTimer = 0;
 
 bootstrap();
@@ -26,16 +58,45 @@ function bootstrap() {
   document.addEventListener("turbo:load", scheduleMount);
   document.addEventListener("turbo:render", scheduleMount);
   document.addEventListener("pjax:end", scheduleMount);
+  window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
+    syncDetectedTheme();
+  });
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") {
+      return;
+    }
+    const panel = document.getElementById(PANEL_ID);
+    if (panel && changes.appearanceMode) {
+      applyPanelTheme(panel, changes.appearanceMode.newValue);
+    }
+    if (panel && changes[STAT_VISIBILITY_STORAGE_KEY] && activeContext && activeStats) {
+      renderStats(
+        panel,
+        activeContext,
+        activeStats,
+        normalizeVisibleStats(changes[STAT_VISIBILITY_STORAGE_KEY].newValue)
+      );
+    }
+  });
 
-  const observer = new MutationObserver(() => {
+  const pageObserver = new MutationObserver(() => {
     if (parsePullContext() && !document.getElementById(PANEL_ID)) {
       scheduleMount();
     }
   });
 
-  observer.observe(document.documentElement, {
+  pageObserver.observe(document.body || document.documentElement, {
     childList: true,
     subtree: true
+  });
+
+  const themeObserver = new MutationObserver(() => {
+    syncDetectedTheme();
+  });
+
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: THEME_ATTRIBUTES
   });
 }
 
@@ -53,6 +114,8 @@ async function mountPanel(options = {}) {
   if (!context) {
     removePanel();
     activePageKey = "";
+    activeContext = null;
+    activeStats = null;
     return;
   }
 
@@ -67,16 +130,23 @@ async function mountPanel(options = {}) {
   }
 
   activePageKey = pageKey;
+  activeContext = context;
+  activeStats = null;
   const requestId = ++activeRequestId;
 
   const panel = ensurePanel(anchor);
+  syncPanelTheme(panel);
   renderLoading(panel, context);
 
-  const stats = await loadAuthorStats(context, options.force);
+  const [stats, visibleStats] = await Promise.all([
+    loadAuthorStats(context, options.force),
+    loadVisibleStats()
+  ]);
   if (requestId !== activeRequestId) {
     return;
   }
-  renderStats(panel, context, stats);
+  activeStats = stats;
+  renderStats(panel, context, stats, visibleStats);
 }
 
 function parsePullContext() {
@@ -137,6 +207,193 @@ function ensurePanel(anchor) {
   return panel;
 }
 
+function syncPanelTheme(panel) {
+  chrome.storage.local.get(["appearanceMode"], (values) => {
+    applyPanelTheme(panel, values.appearanceMode);
+  });
+}
+
+function applyPanelTheme(panel, value) {
+  const appearanceMode = APPEARANCE_MODES.has(value) ? value : "auto";
+  activeAppearanceMode = appearanceMode;
+  if (appearanceMode === "auto") {
+    const detectedTheme = detectPageTheme();
+    panel.dataset.mhTheme = detectedTheme;
+    panel.dataset.mhThemeSource = "auto";
+    return;
+  }
+  panel.dataset.mhTheme = appearanceMode;
+  panel.dataset.mhThemeSource = "manual";
+}
+
+function syncDetectedTheme(panel = document.getElementById(PANEL_ID)) {
+  if (!panel || activeAppearanceMode !== "auto") {
+    return;
+  }
+  const detectedTheme = detectPageTheme();
+  panel.dataset.mhTheme = detectedTheme;
+  panel.dataset.mhThemeSource = "auto";
+}
+
+function detectPageTheme() {
+  const darkReaderTheme = detectDarkReaderTheme();
+  if (darkReaderTheme) {
+    return darkReaderTheme;
+  }
+
+  const colorMode = document.documentElement.dataset.colorMode;
+  if (colorMode === "dark" || colorMode === "light") {
+    return colorMode;
+  }
+
+  const color = detectRenderedThemeColor() || detectCssVariableThemeColor();
+  if (color) {
+    return themeFromColor(color);
+  }
+
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function detectDarkReaderTheme() {
+  const root = document.documentElement;
+  const scheme = root.getAttribute("data-darkreader-scheme");
+  if (scheme === "dark" || scheme === "light") {
+    return scheme;
+  }
+  return root.hasAttribute("data-darkreader-mode") ? "dark" : null;
+}
+
+function detectRenderedThemeColor() {
+  const candidates = [
+    document.querySelector(".application-main"),
+    document.querySelector(".Layout-main"),
+    document.querySelector("[data-testid='repository-container-header']"),
+    document.body,
+    document.documentElement
+  ];
+
+  return candidates
+    .map(readElementBackgroundColor)
+    .find(Boolean);
+}
+
+function readElementBackgroundColor(element) {
+  let current = element;
+  while (current && current.nodeType === Node.ELEMENT_NODE) {
+    if (current.id === PANEL_ID) {
+      current = current.parentElement;
+      continue;
+    }
+    const color = parseCssColor(getComputedStyle(current).backgroundColor);
+    if (color && color.alpha !== 0) {
+      return color;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function detectCssVariableThemeColor() {
+  if (!document.body) {
+    return null;
+  }
+
+  const probe = document.createElement("div");
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.cssText = [
+    "background: var(--bgColor-default, var(--color-canvas-default, transparent))",
+    "height: 0",
+    "left: -9999px",
+    "overflow: hidden",
+    "pointer-events: none",
+    "position: fixed",
+    "top: -9999px",
+    "visibility: hidden",
+    "width: 0"
+  ].join(";");
+  document.body.append(probe);
+
+  try {
+    const color = parseCssColor(getComputedStyle(probe).backgroundColor);
+    return color && color.alpha !== 0 ? color : null;
+  } finally {
+    probe.remove();
+  }
+}
+
+function themeFromColor(color) {
+  return colorLuminance(color) < 0.45 ? "dark" : "light";
+}
+
+function parseCssColor(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return null;
+  }
+
+  if (text === "transparent") {
+    return { red: 0, green: 0, blue: 0, alpha: 0 };
+  }
+
+  let match = text.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (match) {
+    const hex = match[1].length === 3
+      ? match[1].split("").map((char) => char + char).join("")
+      : match[1];
+    return {
+      red: Number.parseInt(hex.slice(0, 2), 16),
+      green: Number.parseInt(hex.slice(2, 4), 16),
+      blue: Number.parseInt(hex.slice(4, 6), 16),
+      alpha: 1
+    };
+  }
+
+  match = text.match(/^rgba?\(([^)]+)\)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const parts = match[1]
+    .replace(/\//g, " ")
+    .split(match[1].includes(",") ? "," : /\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 3) {
+    return null;
+  }
+
+  return {
+    red: parseRgbChannel(parts[0]),
+    green: parseRgbChannel(parts[1]),
+    blue: parseRgbChannel(parts[2]),
+    alpha: parts[3] === undefined ? 1 : parseAlphaChannel(parts[3])
+  };
+}
+
+function parseRgbChannel(value) {
+  const number = Number.parseFloat(value);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return value.endsWith("%") ? Math.round((number / 100) * 255) : number;
+}
+
+function parseAlphaChannel(value) {
+  const number = Number.parseFloat(value);
+  if (!Number.isFinite(number)) {
+    return 1;
+  }
+  return value.endsWith("%") ? number / 100 : number;
+}
+
+function colorLuminance({ red, green, blue }) {
+  const toLinear = (channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * toLinear(red) + 0.7152 * toLinear(green) + 0.0722 * toLinear(blue);
+}
+
 function removePanel() {
   const panel = document.getElementById(PANEL_ID);
   if (panel) {
@@ -171,9 +428,28 @@ async function loadAuthorStats(context, forceRefresh) {
     pull,
     user,
     counts,
-    signal: scoreAuthor({ pull, user, counts }),
-    fetchedAt: new Date()
+    signal: scoreAuthor({ pull, user, counts })
   };
+}
+
+function loadVisibleStats() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([STAT_VISIBILITY_STORAGE_KEY], (values) => {
+      resolve(normalizeVisibleStats(values[STAT_VISIBILITY_STORAGE_KEY]));
+    });
+  });
+}
+
+function normalizeVisibleStats(value) {
+  const visibleStats = {};
+  Object.keys(DEFAULT_VISIBLE_STATS).forEach((key) => {
+    visibleStats[key] = !value || value[key] !== false;
+  });
+  return visibleStats;
+}
+
+function isStatVisible(visibleStats, key) {
+  return !visibleStats || visibleStats[key] !== false;
 }
 
 function buildSearchRequests(context, login, forceRefresh) {
@@ -289,7 +565,6 @@ async function githubGet(path, params = {}, cacheTtlMs = CACHE_MEDIUM_MS) {
     throw new Error(`${detail}${status}`);
   }
 
-  githubGet.lastRate = response.rate || null;
   return response.data;
 }
 
@@ -402,18 +677,40 @@ function renderLoading(panel, context) {
     <div class="mh-card mh-loading">
       <div class="mh-title-row">
         <h3>Author statistics</h3>
-        <span class="mh-spinner" aria-hidden="true"></span>
+        <div class="mh-actions">
+          <span class="mh-spinner" aria-hidden="true"></span>
+        </div>
       </div>
       <p>Loading ${escapeHtml(context.owner)}/${escapeHtml(context.repo)} PR data...</p>
     </div>
   `;
 }
 
-function renderStats(panel, context, stats) {
-  const { pull, user, counts, signal, fetchedAt } = stats;
+function renderStats(panel, context, stats, visibleStats = DEFAULT_VISIBLE_STATS) {
+  const { pull, user, counts, signal } = stats;
+  const visible = normalizeVisibleStats(visibleStats);
   const profileUrl = user.html_url || `https://github.com/${user.login}`;
   const mergedRatio = ratioText(getCount(counts.repoMerged), getCount(counts.repoTotal));
-  const rate = githubGet.lastRate;
+  const statRows = [
+    ["repoTotal", () => renderLinkedStat(counts.repoTotal)],
+    ["repoMerged", () => renderLinkedStat(counts.repoMerged)],
+    ["repoOpen", () => renderLinkedStat(counts.repoOpen)],
+    ["repoClosedUnmerged", () => renderLinkedStat(counts.repoClosedUnmerged)],
+    ["repoRecent48h", () => renderLinkedStat(counts.repoRecent48h)],
+    ["repoIssues", () => renderLinkedStat(counts.repoIssues)],
+    ["mergedRatio", () => renderPlainStat("Merged ratio here", mergedRatio)],
+    ["authorAssociation", () => renderPlainStat("Author association", pull.author_association || "UNKNOWN")],
+    ["globalRecent48h", () => renderLinkedStat(counts.globalRecent48h)],
+    ["accountCreated", () => renderProfileStat("Account created", formatDate(user.created_at), profileUrl)],
+    ["accountAge", () => renderProfileStat("Account age", formatDurationDays(daysSince(user.created_at)), profileUrl)],
+    ["publicRepos", () => renderProfileStat("Public repos", formatNumber(user.public_repos), `${profileUrl}?tab=repositories`)],
+    ["followers", () => renderProfileStat("Followers", formatNumber(user.followers), `${profileUrl}?tab=followers`)],
+    ["currentPrAge", () => renderPlainStat("Current PR age", formatDurationDays(daysSince(pull.created_at)))],
+    ["currentPrSize", () => renderPlainStat("Current PR size", formatPrSize(pull))]
+  ]
+    .filter(([key]) => isStatVisible(visible, key))
+    .map(([, render]) => render())
+    .join("");
 
   panel.innerHTML = `
     <div class="mh-card">
@@ -421,7 +718,7 @@ function renderStats(panel, context, stats) {
         <h3>Author statistics</h3>
         <div class="mh-actions">
           <button type="button" class="mh-button mh-refresh">Refresh</button>
-          <button type="button" class="mh-button mh-options">Token</button>
+          <button type="button" class="mh-button mh-options">Options</button>
         </div>
       </div>
 
@@ -430,30 +727,8 @@ function renderStats(panel, context, stats) {
         <span class="mh-pill mh-pill-${signal.tone}">${escapeHtml(signal.level)}</span>
       </div>
 
-      ${renderSignals(signal)}
-
-      <dl class="mh-stat-list">
-        ${renderLinkedStat(counts.repoTotal)}
-        ${renderLinkedStat(counts.repoMerged)}
-        ${renderLinkedStat(counts.repoOpen)}
-        ${renderLinkedStat(counts.repoClosedUnmerged)}
-        ${renderLinkedStat(counts.repoRecent48h)}
-        ${renderLinkedStat(counts.repoIssues)}
-        ${renderPlainStat("Merged ratio here", mergedRatio)}
-        ${renderPlainStat("Author association", pull.author_association || "UNKNOWN")}
-        ${renderLinkedStat(counts.globalRecent48h)}
-        ${renderProfileStat("Account created", formatDate(user.created_at), profileUrl)}
-        ${renderProfileStat("Account age", formatDurationDays(daysSince(user.created_at)), profileUrl)}
-        ${renderProfileStat("Public repos", formatNumber(user.public_repos), `${profileUrl}?tab=repositories`)}
-        ${renderProfileStat("Followers", formatNumber(user.followers), `${profileUrl}?tab=followers`)}
-        ${renderPlainStat("Current PR age", formatDurationDays(daysSince(pull.created_at)))}
-        ${renderPlainStat("Current PR size", formatPrSize(pull))}
-      </dl>
-
-      <div class="mh-footer">
-        <span>Updated ${escapeHtml(formatTime(fetchedAt))}</span>
-        ${rate && rate.remaining !== null ? `<span>API remaining ${escapeHtml(rate.remaining)}</span>` : ""}
-      </div>
+      ${isStatVisible(visible, "signals") ? renderSignals(signal) : ""}
+      ${statRows ? `<dl class="mh-stat-list">${statRows}</dl>` : ""}
     </div>
   `;
 
@@ -511,17 +786,23 @@ function renderPlainStat(label, value) {
 }
 
 function renderError(context, error) {
+  if (!context) {
+    return;
+  }
   const anchor = findReviewersAnchor();
-  if (!context || !anchor) {
+  if (!anchor) {
     return;
   }
   const panel = ensurePanel(anchor);
+  syncPanelTheme(panel);
   const message = error instanceof Error ? error.message : String(error);
   panel.innerHTML = `
     <div class="mh-card mh-error">
       <div class="mh-title-row">
         <h3>Author statistics</h3>
-        <button type="button" class="mh-button mh-options">Token</button>
+        <div class="mh-actions">
+          <button type="button" class="mh-button mh-options">Options</button>
+        </div>
       </div>
       <p>${escapeHtml(message)}</p>
     </div>
@@ -597,13 +878,6 @@ function formatDate(value) {
     month: "short",
     day: "numeric"
   }).format(new Date(value));
-}
-
-function formatTime(value) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(value);
 }
 
 function formatNumber(value) {
