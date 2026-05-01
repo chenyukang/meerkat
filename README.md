@@ -17,13 +17,32 @@ Each count links to the matching GitHub search page.
 
 All statistics are visible by default. Open the extension options page to hide individual rows and save that display preference locally.
 
-## Load Locally
+## Load Locally In Chrome
 
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Choose Load unpacked.
 4. Select this directory: `/code/to/to/Meerkat`.
 5. Open a PR page such as `https://github.com/rust-lang/rust/pull/155901`.
+
+## Build And Load In Firefox
+
+Firefox needs a different background script declaration than Chrome. Build the Firefox package with:
+
+```sh
+./scripts/package-firefox.sh
+```
+
+This creates `dist/meerkat-<version>-firefox.zip` with a Firefox-specific generated manifest.
+
+To install it temporarily in Firefox:
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click Load Temporary Add-on.
+3. Select the generated Firefox zip in `dist/`, or select `dist/firefox/manifest.json`.
+4. Open a GitHub PR page and test the Author statistics panel.
+
+Temporary Firefox add-ons are removed when Firefox restarts. For permanent installation, submit the Firefox package to Mozilla Add-ons for signing.
 
 ## GitHub Token
 
