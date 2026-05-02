@@ -25,7 +25,11 @@
   --mh-high-fg: #cf222e;
   --mh-high-list-fg: #82071e;
   --mh-spinner-track: var(--borderColor-muted, #d8dee4);
+  border-bottom: 1px solid var(--mh-border-muted);
+  border-top: 1px solid var(--mh-border-muted);
   margin: 16px 0;
+  padding-bottom: 16px;
+  padding-top: 16px;
 }
 
 @media (prefers-color-scheme: dark) {

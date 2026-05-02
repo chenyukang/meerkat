@@ -80,9 +80,14 @@ function bootstrap() {
   });
 
   const pageObserver = new MutationObserver(() => {
-    if (parsePullContext() && !document.getElementById(PANEL_ID)) {
-      scheduleMount();
+    if (!parsePullContext()) {
+      return;
     }
+    if (!document.getElementById(PANEL_ID)) {
+      scheduleMount();
+      return;
+    }
+    repositionPanel();
   });
 
   pageObserver.observe(document.body || document.documentElement, {
@@ -98,6 +103,18 @@ function bootstrap() {
     attributes: true,
     attributeFilter: THEME_ATTRIBUTES
   });
+}
+
+function repositionPanel() {
+  const panel = document.getElementById(PANEL_ID);
+  if (!panel) {
+    return;
+  }
+
+  const anchor = findReviewersAnchor();
+  if (anchor) {
+    ensurePanel(anchor);
+  }
 }
 
 function scheduleMount() {
@@ -125,7 +142,9 @@ async function mountPanel(options = {}) {
   }
 
   const pageKey = `${context.owner}/${context.repo}#${context.pullNumber}`;
-  if (!options.force && activePageKey === pageKey && document.getElementById(PANEL_ID)) {
+  const existingPanel = document.getElementById(PANEL_ID);
+  if (!options.force && activePageKey === pageKey && existingPanel) {
+    ensurePanel(anchor);
     return;
   }
 
@@ -175,7 +194,7 @@ function findReviewersAnchor() {
     sidebar.querySelectorAll(".discussion-sidebar-heading, h2, h3, summary, strong, span")
   );
   const reviewersHeading = headings.find((element) => {
-    return normalizeText(element.textContent) === "reviewers";
+    return isSidebarHeading(element, "reviewers");
   });
 
   if (reviewersHeading) {
@@ -187,7 +206,30 @@ function findReviewersAnchor() {
     );
   }
 
-  return sidebar;
+  return findSidebarTopFallback(sidebar) || sidebar;
+}
+
+function isSidebarHeading(element, label) {
+  const text = normalizeText(element.textContent);
+  return text === label || text.startsWith(`${label} `);
+}
+
+function findSidebarTopFallback(sidebar) {
+  const panel = document.getElementById(PANEL_ID);
+  const items = Array.from(
+    sidebar.querySelectorAll(":scope > .discussion-sidebar-item, :scope > section, :scope > div")
+  ).filter((item) => item !== panel && !item.contains(panel));
+
+  const bottomItem = items.find((item) => {
+    const text = normalizeText(item.textContent);
+    return text.includes("lock conversation") || text.includes("delete branch");
+  });
+  if (bottomItem) {
+    const bottomIndex = items.indexOf(bottomItem);
+    return bottomIndex > 0 ? items[bottomIndex - 1] : null;
+  }
+
+  return null;
 }
 
 function ensurePanel(anchor) {
@@ -199,8 +241,16 @@ function ensurePanel(anchor) {
   }
 
   if (anchor.matches("#partial-discussion-sidebar, .Layout-sidebar, [data-testid='sidebar']")) {
-    anchor.append(panel);
-  } else if (anchor.nextSibling !== panel) {
+    const firstChild = Array.from(anchor.children).find((child) => child !== panel);
+    if (firstChild && firstChild !== panel.nextElementSibling) {
+      anchor.insertBefore(panel, firstChild);
+    } else if (panel.parentElement !== anchor) {
+      anchor.append(panel);
+    }
+    return;
+  }
+
+  if (anchor.nextElementSibling !== panel) {
     anchor.insertAdjacentElement("afterend", panel);
   }
 

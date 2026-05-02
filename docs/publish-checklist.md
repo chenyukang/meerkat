@@ -32,3 +32,14 @@ dist/meerkat-0.1.2-firefox.zip
 ```
 
 The Firefox package is generated from the Chrome manifest with `background.scripts` instead of `background.service_worker` and a Gecko add-on ID.
+
+## GitHub Release
+
+Push a version tag that matches `manifest.json`, for example:
+
+```sh
+git tag -a v0.1.2 -m "Meerkat 0.1.2"
+git push origin main v0.1.2
+```
+
+The `Release` GitHub Actions workflow builds both Chrome and Firefox packages and uploads them to the GitHub Release.

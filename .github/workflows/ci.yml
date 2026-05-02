@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check and package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check JavaScript syntax
+        run: |
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Check shell scripts
+        run: |
+          find scripts -name '*.sh' -print0 | xargs -0 -n1 sh -n
+
+      - name: Build packages
+        run: |
+          ./scripts/package.sh
+          ./scripts/package-firefox.sh
+
+      - name: Validate packages
+        run: |
+          unzip -t "dist/meerkat-$(node -p "require('./manifest.json').version").zip"
+          unzip -t "dist/meerkat-$(node -p "require('./manifest.json').version")-firefox.zip"
+
+      - name: Validate generated manifests
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+
+          const rootManifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+          const firefoxManifest = JSON.parse(
+            fs.readFileSync(path.join("dist", "firefox", "manifest.json"), "utf8")
+          );
+
+          if (rootManifest.background?.service_worker !== "src/background.js") {
+            throw new Error("Chrome manifest must use background.service_worker.");
+          }
+          if (rootManifest.background?.scripts) {
+            throw new Error("Chrome manifest must not include background.scripts.");
+          }
+          if (firefoxManifest.background?.service_worker) {
+            throw new Error("Firefox manifest must not include background.service_worker.");
+          }
+          if (firefoxManifest.background?.scripts?.[0] !== "src/background.js") {
+            throw new Error("Firefox manifest must use background.scripts.");
+          }
+          if (!firefoxManifest.browser_specific_settings?.gecko?.id) {
+            throw new Error("Firefox manifest must include a Gecko add-on ID.");
+          }
+          if (firefoxManifest.version !== rootManifest.version) {
+            throw new Error("Firefox manifest version must match Chrome manifest version.");
+          }
+          NODE
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: meerkat-packages
+          path: |
+            dist/meerkat-*.zip
+          if-no-files-found: error
