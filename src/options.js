@@ -43,6 +43,11 @@ function loadOptions() {
   chrome.storage.local.get(
     ["githubToken", "appearanceMode", AUTHOR_REPO_CACHE_TTL_STORAGE_KEY, STAT_VISIBILITY_STORAGE_KEY],
     (values) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        setStatus(error.message);
+        return;
+      }
       tokenInput.value = values.githubToken || "";
       appearanceModeInput.value = normalizeAppearanceMode(values.appearanceMode);
       authorRepoCacheTtlInput.value = formatCacheTtlHours(
@@ -54,38 +59,50 @@ function loadOptions() {
   );
 }
 
-function saveToken() {
-  chrome.storage.local.set({ githubToken: tokenInput.value.trim() }, () => {
+async function saveToken() {
+  try {
+    await setLocalStorage({ githubToken: tokenInput.value.trim() });
     setStatus("Saved.");
-  });
+  } catch (error) {
+    setStatus(error.message);
+  }
 }
 
-function saveAppearanceMode() {
+async function saveAppearanceMode() {
   const appearanceMode = normalizeAppearanceMode(appearanceModeInput.value);
   appearanceModeInput.value = appearanceMode;
   applyAppearanceMode(appearanceMode);
-  chrome.storage.local.set({ appearanceMode }, () => {
+  try {
+    await setLocalStorage({ appearanceMode });
     setStatus("Appearance saved.");
-  });
+  } catch (error) {
+    setStatus(error.message);
+  }
 }
 
-function saveAuthorRepoCacheTtl() {
+async function saveAuthorRepoCacheTtl() {
   const cacheTtlHours = normalizeAuthorRepoCacheTtlHours(authorRepoCacheTtlInput.value);
   authorRepoCacheTtlInput.value = formatCacheTtlHours(cacheTtlHours);
-  chrome.storage.local.set({ [AUTHOR_REPO_CACHE_TTL_STORAGE_KEY]: cacheTtlHours }, () => {
+  try {
+    await setLocalStorage({ [AUTHOR_REPO_CACHE_TTL_STORAGE_KEY]: cacheTtlHours });
     setStatus("Cache TTL saved.");
-  });
+  } catch (error) {
+    setStatus(error.message);
+  }
 }
 
-function saveVisibleStats() {
+async function saveVisibleStats() {
   const visibleStats = {};
   STAT_OPTIONS.forEach((option) => {
     const checkbox = visibleStatsContainer.querySelector(`[data-stat-key="${option.key}"]`);
     visibleStats[option.key] = checkbox ? checkbox.checked : true;
   });
-  chrome.storage.local.set({ [STAT_VISIBILITY_STORAGE_KEY]: visibleStats }, () => {
+  try {
+    await setLocalStorage({ [STAT_VISIBILITY_STORAGE_KEY]: visibleStats });
     setStatus("Visible statistics saved.");
-  });
+  } catch (error) {
+    setStatus(error.message);
+  }
 }
 
 async function testToken() {
@@ -119,8 +136,9 @@ async function testToken() {
   }
 }
 
-function clearCache() {
-  chrome.storage.local.get(null, (values) => {
+async function clearCache() {
+  try {
+    const values = await getLocalStorage(null);
     const keys = Object.keys(values).filter((key) => {
       return key.startsWith(API_CACHE_PREFIX) || key.startsWith(AUTHOR_REPO_CACHE_PREFIX);
     });
@@ -128,16 +146,15 @@ function clearCache() {
       setStatus("No cached API responses.");
       return;
     }
-    chrome.storage.local.remove(keys, () => {
-      setStatus(`Cleared ${keys.length} cached responses.`);
-    });
-  });
+    await removeLocalStorage(keys);
+    setStatus(`Cleared ${keys.length} cached responses.`);
+  } catch (error) {
+    setStatus(error.message);
+  }
 }
 
 function saveTokenAsync() {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ githubToken: tokenInput.value.trim() }, resolve);
-  });
+  return setLocalStorage({ githubToken: tokenInput.value.trim() });
 }
 
 function sendRuntimeMessage(message) {
@@ -149,6 +166,45 @@ function sendRuntimeMessage(message) {
         return;
       }
       resolve(response);
+    });
+  });
+}
+
+function getLocalStorage(keys) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(keys, (values) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve(values);
+    });
+  });
+}
+
+function setLocalStorage(values) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(values, () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function removeLocalStorage(keys) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.remove(keys, () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve();
     });
   });
 }

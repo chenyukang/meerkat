@@ -47,6 +47,9 @@ jobs:
         run: |
           find src -name '*.js' -print0 | xargs -0 -n1 node --check
 
+      - name: Run tests
+        run: node --test
+
       - name: Check shell scripts
         run: |
           find scripts -name '*.sh' -print0 | xargs -0 -n1 sh -n

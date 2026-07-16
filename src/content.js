@@ -162,10 +162,22 @@ async function mountPanel(options = {}) {
   syncPanelTheme(panel);
   renderLoading(panel, context);
 
-  const [stats, visibleStats] = await Promise.all([
-    loadAuthorStats(context, options.force),
-    loadVisibleStats()
-  ]);
+  let visibleStats = DEFAULT_VISIBLE_STATS;
+  const visibleStatsPromise = loadVisibleStats().then((value) => {
+    visibleStats = value;
+    if (requestId === activeRequestId && activeStats) {
+      renderStats(panel, context, activeStats, visibleStats);
+    }
+    return value;
+  });
+  const stats = await loadAuthorStats(context, options.force, (partialStats) => {
+    if (requestId !== activeRequestId) {
+      return;
+    }
+    activeStats = partialStats;
+    renderStats(panel, context, partialStats, visibleStats);
+  });
+  await visibleStatsPromise;
   if (requestId !== activeRequestId) {
     return;
   }
@@ -456,7 +468,7 @@ function removePanel() {
   }
 }
 
-async function loadAuthorStats(context, forceRefresh) {
+async function loadAuthorStats(context, forceRefresh, onUpdate) {
   const pull = await githubGet(
     `/repos/${context.owner}/${context.repo}/pulls/${context.pullNumber}`,
     {},
@@ -468,7 +480,30 @@ async function loadAuthorStats(context, forceRefresh) {
     throw new Error("Could not read the PR author from the GitHub API response.");
   }
 
-  const authorRepoStats = await loadAuthorRepoStats(context, login, pull, forceRefresh);
+  const requests = buildSearchRequests(context, login, forceRefresh);
+  const initialAuthorRepoStats = {
+    authorAssociation: pull.author_association || null,
+    searchResults: requests.map(createPendingSearchResult),
+    user: createPendingUser(login, pull),
+    userError: null,
+    userState: "loading"
+  };
+  onUpdate?.(buildAuthorStats(pull, initialAuthorRepoStats));
+
+  const authorRepoStats = await loadAuthorRepoStats(
+    context,
+    login,
+    pull,
+    forceRefresh,
+    requests,
+    (partialAuthorRepoStats) => {
+      onUpdate?.(buildAuthorStats(pull, partialAuthorRepoStats));
+    }
+  );
+  return buildAuthorStats(pull, authorRepoStats);
+}
+
+function buildAuthorStats(pull, authorRepoStats) {
   const pullForStats = {
     ...pull,
     author_association: authorRepoStats.authorAssociation || pull.author_association
@@ -478,44 +513,146 @@ async function loadAuthorStats(context, forceRefresh) {
     authorRepoStats.searchResults.map((result) => [result.id, result])
   );
 
+  const candidateSignal = scoreAuthor({
+    pull: pullForStats,
+    user: authorRepoStats.user,
+    counts
+  });
+  const searchLoading = authorRepoStats.searchResults.some((result) => result.loading);
+  const searchFailed = authorRepoStats.searchResults.some(
+    (result) => !result.loading && !result.ok
+  );
+  const loading = authorRepoStats.userState === "loading" || searchLoading;
+  const incomplete = authorRepoStats.userState === "error" || searchFailed;
+
+  let signal = candidateSignal;
+  if (candidateSignal.tone !== "trusted" && loading) {
+    signal = {
+      level: "Checking",
+      tone: "pending",
+      pending: true,
+      message: "Loading author history and profile metrics...",
+      score: null,
+      signals: []
+    };
+  } else if (candidateSignal.tone !== "trusted" && incomplete) {
+    signal = {
+      level: "Partial",
+      tone: "pending",
+      pending: true,
+      message: "Some metrics are unavailable, so the risk score is incomplete.",
+      score: null,
+      signals: []
+    };
+  }
+
   return {
     pull: pullForStats,
     user: authorRepoStats.user,
     counts,
-    signal: scoreAuthor({ pull: pullForStats, user: authorRepoStats.user, counts })
+    signal,
+    loading,
+    userError: authorRepoStats.userError,
+    userState: authorRepoStats.userState
   };
 }
 
-async function loadAuthorRepoStats(context, login, pull, forceRefresh) {
-  const requests = buildSearchRequests(context, login, forceRefresh);
+async function loadAuthorRepoStats(
+  context,
+  login,
+  pull,
+  forceRefresh,
+  requests,
+  onUpdate
+) {
   const cacheTtlMs = await loadAuthorRepoCacheTtlMs();
   const cacheKey = authorRepoCacheKey(context, login);
 
   if (!forceRefresh && cacheTtlMs > 0) {
     const cachedStats = await getAuthorRepoCachedStats(cacheKey, requests, cacheTtlMs);
     if (cachedStats) {
-      return cachedStats;
+      const readyCachedStats = {
+        ...cachedStats,
+        userError: null,
+        userState: "ready"
+      };
+      onUpdate?.(readyCachedStats);
+      return readyCachedStats;
     }
   }
 
-  const apiCacheTtlMs = cacheTtlMs > 0 ? 0 : undefined;
-  const [user, searchResults] = await Promise.all([
-    githubGet(`/users/${login}`, {}, forceRefresh ? 0 : apiCacheTtlMs ?? CACHE_LONG_MS),
-    Promise.all(
-      requests.map((request) => runSearchRequest({ ...request, ttlMs: apiCacheTtlMs ?? request.ttlMs }))
-    )
-  ]);
+  const apiCacheTtlMs = forceRefresh ? 0 : cacheTtlMs > 0 ? cacheTtlMs : undefined;
   const authorAssociation = pull.author_association || null;
+  let user = createPendingUser(login, pull);
+  let userError = null;
+  let userState = "loading";
+  const searchResults = requests.map(createPendingSearchResult);
+  const emitUpdate = () => {
+    onUpdate?.({
+      authorAssociation,
+      searchResults: [...searchResults],
+      user,
+      userError,
+      userState
+    });
+  };
+  emitUpdate();
 
-  if (cacheTtlMs > 0 && searchResults.every((result) => result.ok)) {
+  const userPromise = githubGet(`/users/${login}`, {}, apiCacheTtlMs ?? CACHE_LONG_MS)
+    .then((loadedUser) => {
+      user = loadedUser;
+      userState = "ready";
+      emitUpdate();
+    })
+    .catch((error) => {
+      userError = error instanceof Error ? error.message : String(error);
+      userState = "error";
+      emitUpdate();
+    });
+  const searchPromises = requests.map((request, index) => {
+    return runSearchRequest({ ...request, ttlMs: apiCacheTtlMs ?? request.ttlMs }).then(
+      (result) => {
+        searchResults[index] = result;
+        emitUpdate();
+      }
+    );
+  });
+  await Promise.all([userPromise, ...searchPromises]);
+
+  if (cacheTtlMs > 0 && userState === "ready" && searchResults.every((result) => result.ok)) {
+    const createdAt = Date.now();
     await setLocalStorageValue(cacheKey, {
-      createdAt: Date.now(),
+      createdAt,
+      expiresAt: createdAt + cacheTtlMs,
       authorAssociation,
       results: serializeSearchResults(searchResults),
       user: serializeUser(user)
+    }).catch((error) => {
+      console.warn(`Meerkat author cache write skipped: ${error.message}`);
     });
   }
-  return { authorAssociation, searchResults, user };
+  return { authorAssociation, searchResults, user, userError, userState };
+}
+
+function createPendingUser(login, pull) {
+  return {
+    created_at: null,
+    followers: null,
+    html_url: pull.user && pull.user.html_url
+      ? pull.user.html_url
+      : `https://github.com/${login}`,
+    login,
+    public_repos: null
+  };
+}
+
+function createPendingSearchResult(request) {
+  return {
+    ...request,
+    count: null,
+    loading: true,
+    ok: false
+  };
 }
 
 function loadVisibleStats() {
@@ -562,16 +699,16 @@ function buildSearchRequests(context, login, forceRefresh) {
 
   const requests = [
     {
-      id: "repoTotal",
-      label: "Repo PRs",
-      query: `repo:${ownerRepo} is:pr author:${login}`,
-      link: repoPullsLink(context, `is:pr author:${login}`)
-    },
-    {
       id: "repoMerged",
       label: "Merged in repo",
       query: `repo:${ownerRepo} is:pr author:${login} is:merged`,
       link: repoPullsLink(context, `is:pr author:${login} is:merged`)
+    },
+    {
+      id: "repoTotal",
+      label: "Repo PRs",
+      query: `repo:${ownerRepo} is:pr author:${login}`,
+      link: repoPullsLink(context, `is:pr author:${login}`)
     },
     {
       id: "repoOpen",
@@ -610,6 +747,7 @@ function buildSearchRequests(context, login, forceRefresh) {
 
   return requests.map((request) => ({
     ...request,
+    cacheKey: `search:${context.owner.toLowerCase()}/${context.repo.toLowerCase()}/${login.toLowerCase()}/${request.id}`,
     ttlMs: forceRefresh ? 0 : CACHE_MEDIUM_MS
   }));
 }
@@ -622,28 +760,39 @@ async function runSearchRequest(request) {
         q: request.query,
         per_page: "1"
       },
-      request.ttlMs
+      request.ttlMs,
+      request.cacheKey
     );
 
     return {
       ...request,
       ok: true,
       count: data.total_count || 0,
-      incomplete: Boolean(data.incomplete_results)
+      incomplete: Boolean(data.incomplete_results),
+      loading: false
     };
   } catch (error) {
     return {
       ...request,
       ok: false,
       count: null,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      loading: false
     };
   }
 }
 
 async function getAuthorRepoCachedStats(cacheKey, requests, cacheTtlMs) {
   const cached = await getLocalStorageValue(cacheKey);
-  if (!cached || !Number.isFinite(cached.createdAt) || Date.now() - cached.createdAt >= cacheTtlMs) {
+  if (!cached || !Number.isFinite(cached.createdAt)) {
+    return null;
+  }
+  const requestedExpiresAt = cached.createdAt + cacheTtlMs;
+  const expiresAt = Number.isFinite(cached.expiresAt)
+    ? Math.min(cached.expiresAt, requestedExpiresAt)
+    : requestedExpiresAt;
+  if (Date.now() >= expiresAt) {
+    await removeLocalStorageValue(cacheKey).catch(() => {});
     return null;
   }
   if (!isCachedUser(cached.user)) {
@@ -663,7 +812,8 @@ async function getAuthorRepoCachedStats(cacheKey, requests, cacheTtlMs) {
       ok: cachedResult.ok === true,
       count: Number.isFinite(cachedResult.count) ? cachedResult.count : null,
       incomplete: Boolean(cachedResult.incomplete),
-      error: typeof cachedResult.error === "string" ? cachedResult.error : undefined
+      error: typeof cachedResult.error === "string" ? cachedResult.error : undefined,
+      loading: false
     };
   });
 
@@ -717,7 +867,7 @@ function authorRepoCacheKey(context, login) {
   return `${AUTHOR_REPO_CACHE_PREFIX}${context.owner.toLowerCase()}/${context.repo.toLowerCase()}/${login.toLowerCase()}`;
 }
 
-async function githubGet(path, params = {}, cacheTtlMs = CACHE_MEDIUM_MS) {
+async function githubGet(path, params = {}, cacheTtlMs = CACHE_MEDIUM_MS, cacheKey = null) {
   const url = new URL(path, API_ORIGIN);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
@@ -728,7 +878,7 @@ async function githubGet(path, params = {}, cacheTtlMs = CACHE_MEDIUM_MS) {
   const response = await sendRuntimeMessage({
     type: "mh:github-request",
     url: url.toString(),
-    cacheKey: url.toString(),
+    cacheKey: cacheKey || url.toString(),
     cacheTtlMs
   });
 
@@ -740,7 +890,13 @@ async function githubGet(path, params = {}, cacheTtlMs = CACHE_MEDIUM_MS) {
           ? response.error
           : "GitHub API request failed.";
     const status = response && response.status ? ` (${response.status})` : "";
-    throw new Error(`${detail}${status}`);
+    const attempts = response && response.attempts > 1
+      ? ` after ${response.attempts} attempts`
+      : "";
+    const requestId = response && response.requestId
+      ? ` [Request ID: ${response.requestId}]`
+      : "";
+    throw new Error(`${detail}${status}${attempts}${requestId}`);
   }
 
   return response.data;
@@ -770,9 +926,27 @@ async function getLocalStorageValue(key) {
   return values[key];
 }
 
-function setLocalStorageValue(key, value) {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: value }, resolve);
+async function setLocalStorageValue(key, value) {
+  const response = await sendRuntimeMessage({
+    type: "mh:cache-set",
+    key,
+    value
+  });
+  if (!response || !response.ok) {
+    throw new Error(response && response.error ? response.error : "Cache write failed.");
+  }
+}
+
+function removeLocalStorageValue(key) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.remove([key], () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve();
+    });
   });
 }
 
@@ -882,10 +1056,12 @@ function renderLoading(panel, context) {
 }
 
 function renderStats(panel, context, stats, visibleStats = DEFAULT_VISIBLE_STATS) {
-  const { pull, user, counts, signal } = stats;
+  const { pull, user, counts, signal, userError, userState } = stats;
   const visible = normalizeVisibleStats(visibleStats);
   const profileUrl = user.html_url || `https://github.com/${user.login}`;
-  const mergedRatio = ratioText(getCount(counts.repoMerged), getCount(counts.repoTotal));
+  const mergedRatio = counts.repoMerged?.loading || counts.repoTotal?.loading
+    ? "Loading…"
+    : ratioText(getCount(counts.repoMerged), getCount(counts.repoTotal));
   const statRows = [
     ["repoTotal", () => renderLinkedStat(counts.repoTotal)],
     ["repoMerged", () => renderLinkedStat(counts.repoMerged)],
@@ -896,10 +1072,10 @@ function renderStats(panel, context, stats, visibleStats = DEFAULT_VISIBLE_STATS
     ["mergedRatio", () => renderPlainStat("Merged ratio here", mergedRatio)],
     ["authorAssociation", () => renderPlainStat("Author association", pull.author_association || "UNKNOWN")],
     ["globalRecent48h", () => renderLinkedStat(counts.globalRecent48h)],
-    ["accountCreated", () => renderProfileStat("Account created", formatDate(user.created_at), profileUrl)],
-    ["accountAge", () => renderProfileStat("Account age", formatDurationDays(daysSince(user.created_at)), profileUrl)],
-    ["publicRepos", () => renderProfileStat("Public repos", formatNumber(user.public_repos), `${profileUrl}?tab=repositories`)],
-    ["followers", () => renderProfileStat("Followers", formatNumber(user.followers), `${profileUrl}?tab=followers`)],
+    ["accountCreated", () => renderProfileStat("Account created", formatDate(user.created_at), profileUrl, userState, userError)],
+    ["accountAge", () => renderProfileStat("Account age", formatDurationDays(daysSince(user.created_at)), profileUrl, userState, userError)],
+    ["publicRepos", () => renderProfileStat("Public repos", formatNumber(user.public_repos), `${profileUrl}?tab=repositories`, userState, userError)],
+    ["followers", () => renderProfileStat("Followers", formatNumber(user.followers), `${profileUrl}?tab=followers`, userState, userError)],
     ["currentPrAge", () => renderPlainStat("Current PR age", formatDurationDays(daysSince(pull.created_at)))],
     ["currentPrSize", () => renderPlainStat("Current PR size", formatPrSize(pull))]
   ]
@@ -912,6 +1088,7 @@ function renderStats(panel, context, stats, visibleStats = DEFAULT_VISIBLE_STATS
       <div class="mh-title-row">
         <h3>Author statistics</h3>
         <div class="mh-actions">
+          ${stats.loading ? '<span class="mh-spinner" aria-label="Loading more statistics"></span>' : ""}
           <button type="button" class="mh-button mh-refresh">Refresh</button>
           <button type="button" class="mh-button mh-options">Options</button>
         </div>
@@ -937,6 +1114,9 @@ function renderStats(panel, context, stats, visibleStats = DEFAULT_VISIBLE_STATS
 }
 
 function renderSignals(signal) {
+  if (signal.pending) {
+    return `<div class="mh-signal">${escapeHtml(signal.message)}</div>`;
+  }
   if (!signal.signals.length) {
     return `<div class="mh-signal mh-signal-${signal.tone}">No obvious spam signals from these metrics.</div>`;
   }
@@ -950,6 +1130,9 @@ function renderSignals(signal) {
 }
 
 function renderLinkedStat(stat) {
+  if (!stat || stat.loading) {
+    return renderPendingStat(stat ? stat.label : "Statistic");
+  }
   const value = stat.ok
     ? `${stat.incomplete ? "~" : ""}${formatNumber(stat.count)}`
     : "Error";
@@ -962,11 +1145,36 @@ function renderLinkedStat(stat) {
   `;
 }
 
-function renderProfileStat(label, value, url) {
+function renderProfileStat(label, value, url, state = "ready", error = null) {
+  if (state === "loading") {
+    return renderPendingStat(label);
+  }
+  if (state === "error") {
+    return renderUnavailableStat(label, error);
+  }
   return `
     <div class="mh-stat">
       <dt>${escapeHtml(label)}</dt>
       <dd><a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">${escapeHtml(value)}</a></dd>
+    </div>
+  `;
+}
+
+function renderPendingStat(label) {
+  return `
+    <div class="mh-stat mh-stat-pending">
+      <dt>${escapeHtml(label)}</dt>
+      <dd>Loading…</dd>
+    </div>
+  `;
+}
+
+function renderUnavailableStat(label, error) {
+  const title = error ? ` title="${escapeAttribute(error)}"` : "";
+  return `
+    <div class="mh-stat"${title}>
+      <dt>${escapeHtml(label)}</dt>
+      <dd>Error</dd>
     </div>
   `;
 }

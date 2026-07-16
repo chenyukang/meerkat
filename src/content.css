@@ -283,6 +283,12 @@ html #meerkat-auth-statistics[data-mh-theme="dark"] {
   color: var(--mh-high-fg);
 }
 
+.mh-pill-pending {
+  background: var(--mh-bg-muted);
+  border-color: var(--mh-border);
+  color: var(--mh-fg-muted);
+}
+
 .mh-signal,
 .mh-signal-list {
   margin: 10px 0 0;
@@ -344,6 +350,10 @@ html #meerkat-auth-statistics[data-mh-theme="dark"] {
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: right;
+}
+
+.mh-stat-pending dd {
+  color: var(--mh-fg-muted);
 }
 
 .mh-loading p,
