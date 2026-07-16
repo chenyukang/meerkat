@@ -65,6 +65,10 @@ select {
   margin-bottom: 20px;
 }
 
+.spaced-control {
+  margin-bottom: 20px;
+}
+
 .field-group {
   border: 1px solid var(--options-border);
   border-radius: 6px;

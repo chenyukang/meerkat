@@ -2,9 +2,14 @@
 
 const PANEL_ID = "meerkat-auth-statistics";
 const API_ORIGIN = "https://api.github.com";
+const AUTHOR_REPO_CACHE_PREFIX = "mh:author-repo:";
+const AUTHOR_REPO_CACHE_TTL_STORAGE_KEY = "authorRepoCacheTtlHours";
 const CACHE_SHORT_MS = 2 * 60 * 1000;
 const CACHE_MEDIUM_MS = 10 * 60 * 1000;
 const CACHE_LONG_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_AUTHOR_REPO_CACHE_TTL_HOURS = 2;
+const MAX_AUTHOR_REPO_CACHE_TTL_HOURS = 24;
+const MS_PER_HOUR = 60 * 60 * 1000;
 const RECENT_WINDOW_HOURS = 48;
 const STAT_VISIBILITY_STORAGE_KEY = "visibleStats";
 const TRUSTED_AUTHOR_ASSOCIATIONS = new Set(["MEMBER", "OWNER"]);
@@ -463,23 +468,54 @@ async function loadAuthorStats(context, forceRefresh) {
     throw new Error("Could not read the PR author from the GitHub API response.");
   }
 
-  const userPromise = githubGet(`/users/${login}`, {}, forceRefresh ? 0 : CACHE_LONG_MS);
-  const searchPromises = buildSearchRequests(context, login, forceRefresh);
-  const [user, searchResults] = await Promise.all([
-    userPromise,
-    Promise.all(searchPromises.map((request) => runSearchRequest(request)))
-  ]);
+  const authorRepoStats = await loadAuthorRepoStats(context, login, pull, forceRefresh);
+  const pullForStats = {
+    ...pull,
+    author_association: authorRepoStats.authorAssociation || pull.author_association
+  };
 
   const counts = Object.fromEntries(
-    searchResults.map((result) => [result.id, result])
+    authorRepoStats.searchResults.map((result) => [result.id, result])
   );
 
   return {
-    pull,
-    user,
+    pull: pullForStats,
+    user: authorRepoStats.user,
     counts,
-    signal: scoreAuthor({ pull, user, counts })
+    signal: scoreAuthor({ pull: pullForStats, user: authorRepoStats.user, counts })
   };
+}
+
+async function loadAuthorRepoStats(context, login, pull, forceRefresh) {
+  const requests = buildSearchRequests(context, login, forceRefresh);
+  const cacheTtlMs = await loadAuthorRepoCacheTtlMs();
+  const cacheKey = authorRepoCacheKey(context, login);
+
+  if (!forceRefresh && cacheTtlMs > 0) {
+    const cachedStats = await getAuthorRepoCachedStats(cacheKey, requests, cacheTtlMs);
+    if (cachedStats) {
+      return cachedStats;
+    }
+  }
+
+  const apiCacheTtlMs = cacheTtlMs > 0 ? 0 : undefined;
+  const [user, searchResults] = await Promise.all([
+    githubGet(`/users/${login}`, {}, forceRefresh ? 0 : apiCacheTtlMs ?? CACHE_LONG_MS),
+    Promise.all(
+      requests.map((request) => runSearchRequest({ ...request, ttlMs: apiCacheTtlMs ?? request.ttlMs }))
+    )
+  ]);
+  const authorAssociation = pull.author_association || null;
+
+  if (cacheTtlMs > 0 && searchResults.every((result) => result.ok)) {
+    await setLocalStorageValue(cacheKey, {
+      createdAt: Date.now(),
+      authorAssociation,
+      results: serializeSearchResults(searchResults),
+      user: serializeUser(user)
+    });
+  }
+  return { authorAssociation, searchResults, user };
 }
 
 function loadVisibleStats() {
@@ -496,6 +532,22 @@ function normalizeVisibleStats(value) {
     visibleStats[key] = !value || value[key] !== false;
   });
   return visibleStats;
+}
+
+function loadAuthorRepoCacheTtlMs() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([AUTHOR_REPO_CACHE_TTL_STORAGE_KEY], (values) => {
+      resolve(normalizeAuthorRepoCacheTtlMs(values[AUTHOR_REPO_CACHE_TTL_STORAGE_KEY]));
+    });
+  });
+}
+
+function normalizeAuthorRepoCacheTtlMs(value) {
+  const hours = Number.parseFloat(value);
+  if (!Number.isFinite(hours)) {
+    return DEFAULT_AUTHOR_REPO_CACHE_TTL_HOURS * MS_PER_HOUR;
+  }
+  return Math.max(0, Math.min(hours, MAX_AUTHOR_REPO_CACHE_TTL_HOURS)) * MS_PER_HOUR;
 }
 
 function isStatVisible(visibleStats, key) {
@@ -589,6 +641,82 @@ async function runSearchRequest(request) {
   }
 }
 
+async function getAuthorRepoCachedStats(cacheKey, requests, cacheTtlMs) {
+  const cached = await getLocalStorageValue(cacheKey);
+  if (!cached || !Number.isFinite(cached.createdAt) || Date.now() - cached.createdAt >= cacheTtlMs) {
+    return null;
+  }
+  if (!isCachedUser(cached.user)) {
+    return null;
+  }
+  if (!cached.results || typeof cached.results !== "object") {
+    return null;
+  }
+
+  const searchResults = requests.map((request) => {
+    const cachedResult = cached.results[request.id];
+    if (!cachedResult || typeof cachedResult !== "object") {
+      return null;
+    }
+    return {
+      ...request,
+      ok: cachedResult.ok === true,
+      count: Number.isFinite(cachedResult.count) ? cachedResult.count : null,
+      incomplete: Boolean(cachedResult.incomplete),
+      error: typeof cachedResult.error === "string" ? cachedResult.error : undefined
+    };
+  });
+
+  if (!searchResults.every(Boolean)) {
+    return null;
+  }
+
+  return {
+    authorAssociation: typeof cached.authorAssociation === "string" ? cached.authorAssociation : null,
+    searchResults,
+    user: cached.user
+  };
+}
+
+function serializeSearchResults(results) {
+  return Object.fromEntries(
+    results.map((result) => [
+      result.id,
+      {
+        ok: result.ok === true,
+        count: Number.isFinite(result.count) ? result.count : null,
+        incomplete: Boolean(result.incomplete),
+        error: result.error || null
+      }
+    ])
+  );
+}
+
+function serializeUser(user) {
+  return {
+    created_at: user.created_at || null,
+    followers: Number.isFinite(user.followers) ? user.followers : 0,
+    html_url: user.html_url || null,
+    login: user.login || null,
+    public_repos: Number.isFinite(user.public_repos) ? user.public_repos : 0
+  };
+}
+
+function isCachedUser(user) {
+  return (
+    user &&
+    typeof user === "object" &&
+    typeof user.login === "string" &&
+    typeof user.created_at === "string" &&
+    Number.isFinite(user.public_repos) &&
+    Number.isFinite(user.followers)
+  );
+}
+
+function authorRepoCacheKey(context, login) {
+  return `${AUTHOR_REPO_CACHE_PREFIX}${context.owner.toLowerCase()}/${context.repo.toLowerCase()}/${login.toLowerCase()}`;
+}
+
 async function githubGet(path, params = {}, cacheTtlMs = CACHE_MEDIUM_MS) {
   const url = new URL(path, API_ORIGIN);
   Object.entries(params).forEach(([key, value]) => {
@@ -628,6 +756,23 @@ function sendRuntimeMessage(message) {
       }
       resolve(response);
     });
+  });
+}
+
+function getLocalStorage(keys) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(keys, resolve);
+  });
+}
+
+async function getLocalStorageValue(key) {
+  const values = await getLocalStorage([key]);
+  return values[key];
+}
+
+function setLocalStorageValue(key, value) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [key]: value }, resolve);
   });
 }
 

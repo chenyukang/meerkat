@@ -2,8 +2,14 @@
 
 const tokenInput = document.getElementById("github-token");
 const appearanceModeInput = document.getElementById("appearance-mode");
+const authorRepoCacheTtlInput = document.getElementById("author-repo-cache-ttl");
 const visibleStatsContainer = document.getElementById("visible-stats");
 const statusElement = document.getElementById("status");
+const AUTHOR_REPO_CACHE_PREFIX = "mh:author-repo:";
+const AUTHOR_REPO_CACHE_TTL_STORAGE_KEY = "authorRepoCacheTtlHours";
+const DEFAULT_AUTHOR_REPO_CACHE_TTL_HOURS = 2;
+const MAX_AUTHOR_REPO_CACHE_TTL_HOURS = 24;
+const API_CACHE_PREFIX = "mh:api:";
 const STAT_VISIBILITY_STORAGE_KEY = "visibleStats";
 const STAT_OPTIONS = [
   { key: "signals", label: "Trust/spam signals" },
@@ -28,17 +34,24 @@ document.getElementById("save-token").addEventListener("click", saveToken);
 document.getElementById("test-token").addEventListener("click", testToken);
 document.getElementById("clear-cache").addEventListener("click", clearCache);
 appearanceModeInput.addEventListener("change", saveAppearanceMode);
+authorRepoCacheTtlInput.addEventListener("change", saveAuthorRepoCacheTtl);
 visibleStatsContainer.addEventListener("change", saveVisibleStats);
 
 loadOptions();
 
 function loadOptions() {
-  chrome.storage.local.get(["githubToken", "appearanceMode", STAT_VISIBILITY_STORAGE_KEY], (values) => {
-    tokenInput.value = values.githubToken || "";
-    appearanceModeInput.value = normalizeAppearanceMode(values.appearanceMode);
-    applyAppearanceMode(appearanceModeInput.value);
-    renderVisibleStatsOptions(normalizeVisibleStats(values[STAT_VISIBILITY_STORAGE_KEY]));
-  });
+  chrome.storage.local.get(
+    ["githubToken", "appearanceMode", AUTHOR_REPO_CACHE_TTL_STORAGE_KEY, STAT_VISIBILITY_STORAGE_KEY],
+    (values) => {
+      tokenInput.value = values.githubToken || "";
+      appearanceModeInput.value = normalizeAppearanceMode(values.appearanceMode);
+      authorRepoCacheTtlInput.value = formatCacheTtlHours(
+        normalizeAuthorRepoCacheTtlHours(values[AUTHOR_REPO_CACHE_TTL_STORAGE_KEY])
+      );
+      applyAppearanceMode(appearanceModeInput.value);
+      renderVisibleStatsOptions(normalizeVisibleStats(values[STAT_VISIBILITY_STORAGE_KEY]));
+    }
+  );
 }
 
 function saveToken() {
@@ -53,6 +66,14 @@ function saveAppearanceMode() {
   applyAppearanceMode(appearanceMode);
   chrome.storage.local.set({ appearanceMode }, () => {
     setStatus("Appearance saved.");
+  });
+}
+
+function saveAuthorRepoCacheTtl() {
+  const cacheTtlHours = normalizeAuthorRepoCacheTtlHours(authorRepoCacheTtlInput.value);
+  authorRepoCacheTtlInput.value = formatCacheTtlHours(cacheTtlHours);
+  chrome.storage.local.set({ [AUTHOR_REPO_CACHE_TTL_STORAGE_KEY]: cacheTtlHours }, () => {
+    setStatus("Cache TTL saved.");
   });
 }
 
@@ -100,7 +121,9 @@ async function testToken() {
 
 function clearCache() {
   chrome.storage.local.get(null, (values) => {
-    const keys = Object.keys(values).filter((key) => key.startsWith("mh:api:"));
+    const keys = Object.keys(values).filter((key) => {
+      return key.startsWith(API_CACHE_PREFIX) || key.startsWith(AUTHOR_REPO_CACHE_PREFIX);
+    });
     if (!keys.length) {
       setStatus("No cached API responses.");
       return;
@@ -136,6 +159,18 @@ function setStatus(message) {
 
 function normalizeAppearanceMode(value) {
   return ["auto", "light", "dark"].includes(value) ? value : "auto";
+}
+
+function normalizeAuthorRepoCacheTtlHours(value) {
+  const hours = Number.parseFloat(value);
+  if (!Number.isFinite(hours)) {
+    return DEFAULT_AUTHOR_REPO_CACHE_TTL_HOURS;
+  }
+  return Math.max(0, Math.min(hours, MAX_AUTHOR_REPO_CACHE_TTL_HOURS));
+}
+
+function formatCacheTtlHours(value) {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
 function normalizeVisibleStats(value) {
