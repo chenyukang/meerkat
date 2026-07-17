@@ -12,7 +12,7 @@
 ## Chrome Web Store Dashboard
 
 1. Register or sign in at the Chrome Developer Dashboard.
-2. Upload `dist/meerkat-0.1.2.zip`.
+2. Upload `dist/meerkat-0.1.3.zip`.
 3. Fill Store Listing using `docs/chrome-web-store-listing.md`.
 4. Upload graphics from `assets/store/` and `assets/icons/meerkat-128.png`.
 5. Fill Privacy fields using `docs/chrome-web-store-listing.md`.
@@ -22,13 +22,13 @@
 ## Current Release Package
 
 ```text
-dist/meerkat-0.1.2.zip
+dist/meerkat-0.1.3.zip
 ```
 
 ## Firefox Build
 
 ```text
-dist/meerkat-0.1.2-firefox.zip
+dist/meerkat-0.1.3-firefox.zip
 ```
 
 The Firefox package is generated from the Chrome manifest with `background.scripts` instead of `background.service_worker` and a Gecko add-on ID.
@@ -38,8 +38,8 @@ The Firefox package is generated from the Chrome manifest with `background.scrip
 Push a version tag that matches `manifest.json`, for example:
 
 ```sh
-git tag -a v0.1.2 -m "Meerkat 0.1.2"
-git push origin main v0.1.2
+git tag -a v0.1.3 -m "Meerkat 0.1.3"
+git push origin main v0.1.3
 ```
 
 The `Release` GitHub Actions workflow builds both Chrome and Firefox packages and uploads them to the GitHub Release.

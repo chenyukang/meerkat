@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Meerkat",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Shows GitHub PR author statistics for maintainers.",
   "permissions": ["storage"],
   "host_permissions": ["https://api.github.com/*"],
